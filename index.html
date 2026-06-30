@@ -515,10 +515,23 @@ function showFallbackTicker(){
   document.getElementById('fallbackTickerWrap').classList.remove('hidden');
   document.getElementById('tvTickerTape').classList.add('hidden');
 }
-setTimeout(()=>{
+function checkTvWidgetAndFallback(attemptsLeft){
   const tvWidget = document.querySelector('#tvTickerTape iframe');
-  if(!tvWidget){ showFallbackTicker(); }
-}, 3500);
+  if(tvWidget){
+    // Real widget loaded — make sure fallback stays hidden.
+    document.getElementById('fallbackTickerWrap').classList.add('hidden');
+    document.getElementById('tvTickerTape').classList.remove('hidden');
+    return;
+  }
+  if(attemptsLeft <= 0){
+    showFallbackTicker();
+    return;
+  }
+  setTimeout(()=>checkTvWidgetAndFallback(attemptsLeft-1), 2000);
+}
+// Give the TradingView widget up to ~20 seconds (10 checks x 2s) before falling back —
+// slower connections can take a while to load the external script + iframe.
+setTimeout(()=>checkTvWidgetAndFallback(9), 2000);
 
 // ---------------- Mobile menu ----------------
 document.getElementById('menuToggle').addEventListener('click', ()=>{
