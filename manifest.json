@@ -1,0 +1,23 @@
+{
+  "name": "RIVEXA Financials",
+  "short_name": "RIVEXA",
+  "description": "Market Research & Analysis — Equities, Commodities, Crypto",
+  "start_url": "/rivexa/",
+  "scope": "/rivexa/",
+  "display": "standalone",
+  "background_color": "#0B0D10",
+  "theme_color": "#C9A227",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/placeholder/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.ibb.co/placeholder/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

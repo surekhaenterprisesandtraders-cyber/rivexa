@@ -4,6 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RIVEXA Financials — Market Research & Analysis</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C9A227">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RIVEXA">
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(function(OneSignal) {
+    OneSignal.init({
+      appId: "e0238db6-8d51-4ee8-88cd-68950a557208",
+      serviceWorkerParam: { scope: "/" },
+      notifyButton: { enable: false },
+      welcomeNotification: {
+        title: "RIVEXA Financials",
+        message: "Thanks for subscribing! You'll get notified on new research & news.",
+      },
+      promptOptions: {
+        slidedown: {
+          prompts: [{
+            type: "push",
+            autoPrompt: true,
+            text: {
+              actionMessage: "RIVEXA Financials would like to send you push notifications for new research, news & blog posts.",
+              acceptButton: "Allow",
+              cancelButton: "No Thanks"
+            },
+            delay: { pageViews: 1, timeDelay: 5 }
+          }]
+        }
+      }
+    });
+  });
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -697,6 +731,30 @@ document.querySelectorAll('.tab[data-posttab]').forEach(tab=>{
 // ---------------- Image upload: compress + preview ----------------
 // ---------------- Image upload: imgBB (original quality, free hosting) ----------------
 const IMGBB_API_KEY = 'd2faec4e5483d0f0468827eb1b8d8773';
+const ONESIGNAL_APP_ID = 'e0238db6-8d51-4ee8-88cd-68950a557208';
+const ONESIGNAL_REST_KEY = 'PASTE_YOUR_REST_API_KEY_HERE'; // Settings → Keys & IDs
+
+async function sendPushNotification(title, body, type){
+  if(!ONESIGNAL_REST_KEY || ONESIGNAL_REST_KEY.startsWith('PASTE')) return;
+  const typeEmoji = {research:'📊', blog:'✍️', news:'📰'};
+  try{
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${ONESIGNAL_REST_KEY}`
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ['Total Subscribed'],
+        headings: { en: `${typeEmoji[type]||'🔔'} RIVEXA Financials — ${type.charAt(0).toUpperCase()+type.slice(1)}` },
+        contents: { en: title },
+        subtitle: { en: body.slice(0,60) + (body.length>60?'…':'') },
+        url: `https://surekhaenterprisesandtraders-cyber.github.io/rivexa/#${type==='research'?'research':type==='blog'?'blog':'news'}`,
+      })
+    });
+  }catch(e){ console.warn('Push notification failed:', e); }
+}
 
 async function uploadToImgBB(file){
   const formData = new FormData();
@@ -773,6 +831,7 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
   document.getElementById('researchForm').reset();
   researchImageField.reset();
+  await sendPushNotification(title, body, 'research');
   await loadResearch(); await updateDashCounts();
 });
 
@@ -794,6 +853,7 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   msg.className='form-msg ok'; msg.textContent='Published to the blog!';
   document.getElementById('blogForm').reset();
   blogImageField.reset();
+  await sendPushNotification(title, body, 'blog');
   await loadBlog(); await updateDashCounts();
 });
 
@@ -815,6 +875,7 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   msg.className='form-msg ok'; msg.textContent='Published to major news!';
   document.getElementById('newsForm').reset();
   newsImageField.reset();
+  await sendPushNotification(title, body, 'news');
   await loadNews(); await updateDashCounts();
 });
 
