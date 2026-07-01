@@ -24,6 +24,8 @@
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html{scroll-behavior:smooth;}
+  /* Prevent flash of wrong scroll position */
+  html.restoring-scroll{ scroll-behavior:auto; }
   body{
     background:var(--bg);
     color:var(--text);
@@ -280,7 +282,7 @@
 
 <header>
   <nav>
-    <div class="logo">RIVE<span>XA</span></div>
+    <a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'}); history.replaceState(null,'',location.pathname); return false;" style="text-decoration:none;"><div class="logo">RIVE<span>XA</span></div></a>
     <div class="navlinks">
       <a href="#services">Services</a>
       <a href="#news">News</a>
@@ -546,6 +548,20 @@
 </div>
 
 <script>
+// ---------------- Scroll position: save on scroll, restore on refresh ----------------
+if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+(function(){
+  const saved = sessionStorage.getItem('rivexa_scroll');
+  if(saved){
+    document.documentElement.classList.add('restoring-scroll');
+    window.scrollTo(0, parseInt(saved, 10));
+    requestAnimationFrame(()=> document.documentElement.classList.remove('restoring-scroll'));
+  }
+})();
+window.addEventListener('scroll', ()=>{
+  sessionStorage.setItem('rivexa_scroll', window.scrollY);
+}, {passive:true});
+
 // Primary ticker is the TradingView free Ticker Tape widget (loaded above) — live NIFTY,
 // Bank Nifty, Sensex, Gold, Silver, Crude Oil, BTC, ETH, no API key, no backend needed.
 // Fallback: if the TradingView script can't load (e.g. blocked sandbox/offline preview),
