@@ -154,6 +154,35 @@
   .post-card h3{font-family:var(--display); font-size:18px; font-weight:600; margin-bottom:10px; line-height:1.3;}
   .post-card p{color:var(--muted); font-size:13.5px; flex:1;}
   .post-foot{margin-top:16px; font-size:12.5px; color:var(--gold-bright); font-weight:600;}
+  .post-img{width:100%; border-radius:4px; margin-bottom:14px; border:1px solid var(--line); object-fit:cover; max-height:200px; cursor:zoom-in; transition:opacity .2s;}
+  .post-img:hover{opacity:.85;}
+  .post-actions{display:flex; justify-content:space-between; align-items:center; margin-top:16px;}
+  .btn-delete{background:transparent; border:1px solid var(--down); color:var(--down); padding:5px 12px; border-radius:3px; font-size:12px; cursor:pointer; font-family:var(--body); transition:all .2s;}
+  .btn-delete:hover{background:var(--down); color:#fff;}
+
+  /* Lightbox */
+  #lightbox{
+    display:none; position:fixed; inset:0; z-index:1000;
+    background:rgba(0,0,0,.92); justify-content:center; align-items:center; flex-direction:column;
+  }
+  #lightbox.open{display:flex;}
+  #lightbox img{
+    max-width:90vw; max-height:80vh; object-fit:contain;
+    transform-origin:center; transition:transform .2s;
+    border-radius:4px; box-shadow:0 0 40px rgba(0,0,0,.6);
+  }
+  .lb-controls{
+    display:flex; gap:14px; margin-top:18px; align-items:center;
+  }
+  .lb-btn{
+    background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+    color:#fff; padding:9px 18px; border-radius:4px; cursor:pointer;
+    font-size:14px; font-family:var(--body); transition:background .2s;
+  }
+  .lb-btn:hover{background:rgba(201,162,39,.25); border-color:var(--gold);}
+  .lb-close{position:absolute; top:20px; right:24px; font-size:28px; cursor:pointer; color:rgba(255,255,255,.6); line-height:1;}
+  .lb-close:hover{color:#fff;}
+  .lb-zoom-label{color:rgba(255,255,255,.5); font-family:var(--mono); font-size:12px; min-width:44px; text-align:center;}
   .empty-state{color:var(--muted); font-size:14px; padding:40px; text-align:center; border:1px dashed var(--line); border-radius:6px;}
 
   /* ---------- ABOUT ---------- */
@@ -505,6 +534,17 @@
   <p>© 2026 RIVEXA Financials · Rahul Patwaa</p>
 </footer>
 
+<div id="lightbox">
+  <span class="lb-close" id="lbClose">✕</span>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-controls">
+    <button class="lb-btn" id="lbZoomOut">− Zoom Out</button>
+    <span class="lb-zoom-label" id="lbZoomLabel">100%</span>
+    <button class="lb-btn" id="lbZoomIn">+ Zoom In</button>
+    <a class="lb-btn" id="lbDownload" download="rivexa-chart.jpg">⬇ Download</a>
+  </div>
+</div>
+
 <script>
 // Primary ticker is the TradingView free Ticker Tape widget (loaded above) — live NIFTY,
 // Bank Nifty, Sensex, Gold, Silver, Crude Oil, BTC, ETH, no API key, no backend needed.
@@ -777,24 +817,79 @@ async function loadFeed(prefix, gridId, countId, emptyMsg, noun){
   const items = [];
   for(const k of keys){
     const raw = await safeGet(k, true);
-    if(raw){ try{ items.push(JSON.parse(raw)); }catch(e){} }
+    if(raw){ try{ items.push({...JSON.parse(raw), _key: k}); }catch(e){} }
   }
   items.sort((a,b)=> new Date(b.date) - new Date(a.date));
-  countEl.textContent = items.length + ' ' + noun + (items.length===1?'':'') + ' published';
+  countEl.textContent = items.length + ' ' + noun + ' published';
   grid.innerHTML = items.map(p=>`
-    <div class="post-card">
-      ${p.image ? `<img src="${p.image}" alt="" style="width:100%; border-radius:4px; margin-bottom:14px; border:1px solid var(--line); object-fit:cover; max-height:200px;">` : ''}
+    <div class="post-card" data-key="${escapeHtml(p._key)}">
+      ${p.image ? `<img src="${p.image}" alt="" class="post-img" data-src="${p.image}" title="Click to zoom">` : ''}
       <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.date).toLocaleDateString()}</span></div>
       <h3>${escapeHtml(p.title)}</h3>
       <p>${escapeHtml(p.body.slice(0,140))}${p.body.length>140?'…':''}</p>
-      <div class="post-foot">By ${escapeHtml(p.authorName)}</div>
+      <div class="post-actions">
+        <div class="post-foot">By ${escapeHtml(p.authorName)}</div>
+        ${currentAdmin ? `<button class="btn-delete" data-key="${escapeHtml(p._key)}">🗑 Delete</button>` : ''}
+      </div>
     </div>
   `).join('');
+
+  // Image click → lightbox
+  grid.querySelectorAll('.post-img').forEach(img=>{
+    img.addEventListener('click', ()=> openLightbox(img.dataset.src));
+  });
+
+  // Delete buttons (admin only)
+  grid.querySelectorAll('.btn-delete').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this post? This cannot be undone.')) return;
+      await safeDelete(btn.dataset.key, true);
+      // reload all three feeds to update counts
+      await Promise.all([loadResearch(), loadBlog(), loadNews()]);
+      await updateDashCounts();
+    });
+  });
 }
 
 function loadResearch(){ return loadFeed('research:', 'researchGrid', 'researchCount', 'No research published yet. Check back soon.', 'note'); }
 function loadBlog(){ return loadFeed('blogpost:', 'blogPostGrid', 'blogCount', 'No blog posts published yet. Check back soon.', 'post'); }
 function loadNews(){ return loadFeed('news:', 'newsGrid', 'newsCount', 'No news published yet. Check back soon.', 'item'); }
+
+// ---------------- Lightbox ----------------
+let lbZoom = 1;
+const lightbox = document.getElementById('lightbox');
+const lbImg = document.getElementById('lbImg');
+const lbZoomLabel = document.getElementById('lbZoomLabel');
+
+function openLightbox(src){
+  lbImg.src = src;
+  document.getElementById('lbDownload').href = src;
+  lbZoom = 1;
+  lbImg.style.transform = 'scale(1)';
+  lbZoomLabel.textContent = '100%';
+  lightbox.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(){
+  lightbox.classList.remove('open');
+  lbImg.src = '';
+  document.body.style.overflow = '';
+}
+function setZoom(z){
+  lbZoom = Math.min(4, Math.max(0.25, z));
+  lbImg.style.transform = `scale(${lbZoom})`;
+  lbZoomLabel.textContent = Math.round(lbZoom*100) + '%';
+}
+document.getElementById('lbClose').addEventListener('click', closeLightbox);
+document.getElementById('lbZoomIn').addEventListener('click', ()=> setZoom(lbZoom + 0.25));
+document.getElementById('lbZoomOut').addEventListener('click', ()=> setZoom(lbZoom - 0.25));
+lightbox.addEventListener('click', (e)=>{ if(e.target===lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{
+  if(!lightbox.classList.contains('open')) return;
+  if(e.key==='Escape') closeLightbox();
+  if(e.key==='+' || e.key==='=') setZoom(lbZoom+0.25);
+  if(e.key==='-') setZoom(lbZoom-0.25);
+});
 
 // ---------------- Visitor (regular user) auth tabs ----------------
 document.querySelectorAll('.tab[data-usertab]').forEach(tab=>{
