@@ -647,6 +647,8 @@ function loginAdmin(adminObj){
   document.getElementById('memberDashboard').style.display = 'block';
   document.getElementById('memberName').textContent = adminObj.name;
   updateDashCounts();
+  // Reload feeds so delete buttons appear for admin
+  loadResearch(); loadBlog(); loadNews();
 }
 
 document.getElementById('logoutBtn').addEventListener('click', ()=>{
@@ -654,6 +656,7 @@ document.getElementById('logoutBtn').addEventListener('click', ()=>{
   document.getElementById('memberDashboard').style.display='none';
   document.getElementById('authPanel').classList.remove('hidden');
   document.getElementById('loginForm').reset();
+  loadResearch(); loadBlog(); loadNews();
 });
 
 async function updateDashCounts(){
