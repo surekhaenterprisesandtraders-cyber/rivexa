@@ -202,6 +202,11 @@
     padding:11px 13px; border-radius:4px; font-size:14px; font-family:var(--body); resize:vertical; min-height:110px;
   }
   textarea:focus, input:focus{outline:none; border-color:var(--gold);}
+  input[type="file"]{
+    background:var(--panel-2); border:1px dashed var(--line); color:var(--muted);
+    padding:10px 13px; border-radius:4px; cursor:pointer; width:100%;
+  }
+  input[type="file"]:hover{border-color:var(--gold);}
 
   footer{border-top:1px solid var(--line); padding:50px 28px; text-align:center;}
   footer p{color:var(--muted); font-size:12.5px; max-width:700px; margin:0 auto 10px;}
@@ -249,9 +254,9 @@
     <div class="logo">RIVE<span>XA</span></div>
     <div class="navlinks">
       <a href="#services">Services</a>
+      <a href="#news">News</a>
       <a href="#research">Research</a>
       <a href="#blog">Blog</a>
-      <a href="#news">News</a>
       <a href="#about">About</a>
       <a href="#contact">Contact</a>
       <a href="#login" class="btn-outline">Login</a>
@@ -318,6 +323,16 @@
   </div>
 </section>
 
+<section id="news">
+  <div class="section-tag">Stay Informed</div>
+  <h2>Major market news</h2>
+  <p class="section-intro">Important market-moving news, curated and published for RIVEXA's readers.</p>
+  <div class="blog-toolbar">
+    <span style="color:var(--muted); font-size:13px;" id="newsCount"></span>
+  </div>
+  <div class="blog-grid" id="newsGrid"></div>
+</section>
+
 <section id="research">
   <div class="section-tag">Research Desk</div>
   <h2>Daily technical analysis</h2>
@@ -336,16 +351,6 @@
     <span style="color:var(--muted); font-size:13px;" id="blogCount"></span>
   </div>
   <div class="blog-grid" id="blogPostGrid"></div>
-</section>
-
-<section id="news">
-  <div class="section-tag">Stay Informed</div>
-  <h2>Major market news</h2>
-  <p class="section-intro">Important market-moving news, curated and published for RIVEXA's readers.</p>
-  <div class="blog-toolbar">
-    <span style="color:var(--muted); font-size:13px;" id="newsCount"></span>
-  </div>
-  <div class="blog-grid" id="newsGrid"></div>
 </section>
 
 <section id="about">
@@ -402,6 +407,8 @@
         <div class="field"><label>Title</label><input type="text" id="researchTitle" required></div>
         <div class="field"><label>Market Tag</label><input type="text" id="researchTag" placeholder="e.g. NIFTY, BTC, GOLD" required></div>
         <div class="field"><label>Analysis</label><textarea id="researchBody" required placeholder="Write your technical view..."></textarea></div>
+        <div class="field"><label>Chart / Image (optional)</label><input type="file" id="researchImage" accept="image/*"></div>
+        <div id="researchImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="researchImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to Research Desk</button>
         <div class="form-msg" id="researchMsg"></div>
       </form>
@@ -409,6 +416,8 @@
         <div class="field"><label>Title</label><input type="text" id="blogTitle" required></div>
         <div class="field"><label>Category</label><input type="text" id="blogTag" placeholder="e.g. Strategy, Psychology, Education" required></div>
         <div class="field"><label>Post</label><textarea id="blogBody" required placeholder="Write your blog post..."></textarea></div>
+        <div class="field"><label>Image (optional)</label><input type="file" id="blogImage" accept="image/*"></div>
+        <div id="blogImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="blogImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to Blog</button>
         <div class="form-msg" id="blogMsg"></div>
       </form>
@@ -416,6 +425,8 @@
         <div class="field"><label>Headline</label><input type="text" id="newsTitle" required></div>
         <div class="field"><label>Category</label><input type="text" id="newsTag" placeholder="e.g. RBI, Fed, Earnings, Global" required></div>
         <div class="field"><label>Details</label><textarea id="newsBody" required placeholder="Write the news summary..."></textarea></div>
+        <div class="field"><label>Image (optional)</label><input type="file" id="newsImage" accept="image/*"></div>
+        <div id="newsImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="newsImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to News</button>
         <div class="form-msg" id="newsMsg"></div>
       </form>
@@ -571,7 +582,7 @@ const ADMIN_CREDENTIALS = {
 document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const password = document.getElementById('loginPassword').value;
+  const password = document.getElementById('loginPassword').value.trim();
   const msg = document.getElementById('loginMsg');
   msg.className='form-msg'; msg.textContent='Checking credentials...';
 
@@ -617,6 +628,52 @@ document.querySelectorAll('.tab[data-posttab]').forEach(tab=>{
   });
 });
 
+// ---------------- Image upload: compress + preview ----------------
+function compressImage(file, maxWidth=1000, quality=0.75){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function setupImageField(inputId, previewWrapId, previewImgId){
+  const input = document.getElementById(inputId);
+  let compressedData = '';
+  input.addEventListener('change', async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    compressedData = await compressImage(file);
+    document.getElementById(previewImgId).src = compressedData;
+    document.getElementById(previewWrapId).classList.remove('hidden');
+  });
+  return {
+    getData: ()=>compressedData,
+    reset: ()=>{
+      compressedData = '';
+      document.getElementById(previewWrapId).classList.add('hidden');
+      document.getElementById(previewImgId).src = '';
+    }
+  };
+}
+const researchImageField = setupImageField('researchImage', 'researchImagePreviewWrap', 'researchImagePreview');
+const blogImageField = setupImageField('blogImage', 'blogImagePreviewWrap', 'blogImagePreview');
+const newsImageField = setupImageField('newsImage', 'newsImagePreviewWrap', 'newsImagePreview');
+
 // ---------------- Publish: Research ----------------
 document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -625,13 +682,15 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('researchTitle').value.trim();
   const tag = document.getElementById('researchTag').value.trim().toUpperCase();
   const body = document.getElementById('researchBody').value.trim();
+  const image = researchImageField.getData();
   const id = 'research:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, authorName: currentAdmin.name, date: new Date().toISOString()};
+  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
   document.getElementById('researchForm').reset();
+  researchImageField.reset();
   await loadResearch(); await updateDashCounts();
 });
 
@@ -643,13 +702,15 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('blogTitle').value.trim();
   const tag = document.getElementById('blogTag').value.trim();
   const body = document.getElementById('blogBody').value.trim();
+  const image = blogImageField.getData();
   const id = 'blogpost:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, authorName: currentAdmin.name, date: new Date().toISOString()};
+  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to the blog!';
   document.getElementById('blogForm').reset();
+  blogImageField.reset();
   await loadBlog(); await updateDashCounts();
 });
 
@@ -661,13 +722,15 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('newsTitle').value.trim();
   const tag = document.getElementById('newsTag').value.trim();
   const body = document.getElementById('newsBody').value.trim();
+  const image = newsImageField.getData();
   const id = 'news:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, authorName: currentAdmin.name, date: new Date().toISOString()};
+  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to major news!';
   document.getElementById('newsForm').reset();
+  newsImageField.reset();
   await loadNews(); await updateDashCounts();
 });
 
@@ -695,6 +758,7 @@ async function loadFeed(prefix, gridId, countId, emptyMsg, noun){
   countEl.textContent = items.length + ' ' + noun + (items.length===1?'':'') + ' published';
   grid.innerHTML = items.map(p=>`
     <div class="post-card">
+      ${p.image ? `<img src="${p.image}" alt="" style="width:100%; border-radius:4px; margin-bottom:14px; border:1px solid var(--line); object-fit:cover; max-height:200px;">` : ''}
       <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.date).toLocaleDateString()}</span></div>
       <h3>${escapeHtml(p.title)}</h3>
       <p>${escapeHtml(p.body.slice(0,140))}${p.body.length>140?'…':''}</p>
