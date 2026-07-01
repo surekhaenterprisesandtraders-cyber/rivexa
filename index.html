@@ -629,44 +629,59 @@ document.querySelectorAll('.tab[data-posttab]').forEach(tab=>{
 });
 
 // ---------------- Image upload: compress + preview ----------------
-function compressImage(file, maxWidth=1000, quality=0.75){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = (e)=>{
-      const img = new Image();
-      img.onload = ()=>{
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+// ---------------- Image upload: imgBB (original quality, free hosting) ----------------
+const IMGBB_API_KEY = 'd2faec4e5483d0f0468827eb1b8d8773';
+
+async function uploadToImgBB(file){
+  const formData = new FormData();
+  formData.append('image', file);
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+    method: 'POST',
+    body: formData
   });
+  const data = await res.json();
+  if(!data.success) throw new Error('imgBB upload failed');
+  return data.data.url; // direct image URL
 }
 
 function setupImageField(inputId, previewWrapId, previewImgId){
   const input = document.getElementById(inputId);
-  let compressedData = '';
+  const previewWrap = document.getElementById(previewWrapId);
+  const previewImg = document.getElementById(previewImgId);
+  let imageUrl = '';
+  let uploading = false;
+
   input.addEventListener('change', async ()=>{
     const file = input.files[0];
     if(!file) return;
-    compressedData = await compressImage(file);
-    document.getElementById(previewImgId).src = compressedData;
-    document.getElementById(previewWrapId).classList.remove('hidden');
+    uploading = true;
+    previewWrap.classList.remove('hidden');
+    previewImg.src = URL.createObjectURL(file); // show local preview instantly
+    previewImg.style.opacity = '0.5';
+    previewImg.title = 'Uploading...';
+    try{
+      imageUrl = await uploadToImgBB(file);
+      previewImg.src = imageUrl;
+      previewImg.style.opacity = '1';
+      previewImg.title = 'Uploaded ✓';
+    } catch(e){
+      previewImg.style.opacity = '1';
+      previewImg.title = 'Upload failed';
+      imageUrl = '';
+      alert('Image upload failed. Check your internet connection and try again.');
+    }
+    uploading = false;
   });
+
   return {
-    getData: ()=>compressedData,
+    getData: ()=> imageUrl,
+    isUploading: ()=> uploading,
     reset: ()=>{
-      compressedData = '';
-      document.getElementById(previewWrapId).classList.add('hidden');
-      document.getElementById(previewImgId).src = '';
+      imageUrl = '';
+      uploading = false;
+      previewWrap.classList.add('hidden');
+      previewImg.src = '';
+      previewImg.style.opacity = '1';
     }
   };
 }
@@ -679,6 +694,7 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('researchMsg');
   if(!currentAdmin){ msg.className='form-msg err'; msg.textContent='Please log in first.'; return; }
+  if(researchImageField.isUploading()){ msg.className='form-msg'; msg.textContent='Image uploading, please wait...'; return; }
   const title = document.getElementById('researchTitle').value.trim();
   const tag = document.getElementById('researchTag').value.trim().toUpperCase();
   const body = document.getElementById('researchBody').value.trim();
@@ -687,7 +703,7 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
   document.getElementById('researchForm').reset();
   researchImageField.reset();
@@ -699,6 +715,7 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('blogMsg');
   if(!currentAdmin){ msg.className='form-msg err'; msg.textContent='Please log in first.'; return; }
+  if(blogImageField.isUploading()){ msg.className='form-msg'; msg.textContent='Image uploading, please wait...'; return; }
   const title = document.getElementById('blogTitle').value.trim();
   const tag = document.getElementById('blogTag').value.trim();
   const body = document.getElementById('blogBody').value.trim();
@@ -707,7 +724,7 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to the blog!';
   document.getElementById('blogForm').reset();
   blogImageField.reset();
@@ -719,6 +736,7 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('newsMsg');
   if(!currentAdmin){ msg.className='form-msg err'; msg.textContent='Please log in first.'; return; }
+  if(newsImageField.isUploading()){ msg.className='form-msg'; msg.textContent='Image uploading, please wait...'; return; }
   const title = document.getElementById('newsTitle').value.trim();
   const tag = document.getElementById('newsTag').value.trim();
   const body = document.getElementById('newsBody').value.trim();
@@ -727,7 +745,7 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
   const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again (image may be too large).'; return; }
+  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
   msg.className='form-msg ok'; msg.textContent='Published to major news!';
   document.getElementById('newsForm').reset();
   newsImageField.reset();
