@@ -641,80 +641,63 @@ document.getElementById('menuToggle').addEventListener('click', ()=>{
   nl.style.cssText += 'flex-direction:column; position:absolute; right:20px; top:60px; background:#14171C; border:1px solid #262B33; padding:20px; border-radius:6px; z-index:60;';
 });
 
-// ---------------- Storage helpers (localStorage — works on GitHub Pages) ----------------
-// "shared" param kept for API compatibility — on localStorage all data is local to the browser.
-async function safeGet(key, shared=false){
-  try{ const v = localStorage.getItem('rivexa:'+key); return v; }
-  catch(e){ return null; }
-}
-async function safeSet(key, value, shared=false){
-  try{ localStorage.setItem('rivexa:'+key, value); return true; }
-  catch(e){ console.error('storage set failed', e); return null; }
-}
-async function safeDelete(key, shared=false){
-  try{ localStorage.removeItem('rivexa:'+key); return true; }
-  catch(e){ return null; }
-}
-async function safeList(prefix, shared=false){
-  try{
-    const keys = [];
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.startsWith('rivexa:'+prefix)) keys.push(k.replace('rivexa:',''));
-    }
-    return keys;
-  }catch(e){ return []; }
+// ---------------- Supabase config ----------------
+const SB_URL = 'https://ksyxwivqawcmfceybyny.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzeXh3aXZxYXdjbWZjZXlieW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzA1MTQsImV4cCI6MjA5ODUwNjUxNH0.7heWNF5gY-12UCJAU1LidVAGeJkZMNa54rhuT1hIWd0';
+const sbHeaders = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+
+async function sbFetch(path, options={}){
+  const res = await fetch(SB_URL+path, {...options, headers:{...sbHeaders,...(options.headers||{})}});
+  if(!res.ok){ const e = await res.text(); throw new Error(e); }
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : [];
 }
 
-let currentAdmin = null;
-
-// Fixed admin credentials — only RIVEXA's founder has these.
-const ADMIN_CREDENTIALS = {
-  name: 'Rahul Patwaa',
-  email: 'admin@rivexafinancials.com',
-  password: '@Rivexa123'
-};
-
-// ---------------- Login ----------------
-document.getElementById('loginForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const password = document.getElementById('loginPassword').value.trim();
-  const msg = document.getElementById('loginMsg');
-  msg.className='form-msg'; msg.textContent='Checking credentials...';
-
-  if(email !== ADMIN_CREDENTIALS.email.toLowerCase() || password !== ADMIN_CREDENTIALS.password){
-    msg.className='form-msg err'; msg.textContent='Incorrect email or password.';
-    return;
-  }
-  msg.className='form-msg ok'; msg.textContent='Welcome back!';
-  setTimeout(()=>loginAdmin(ADMIN_CREDENTIALS), 300);
-});
-
-function loginAdmin(adminObj){
-  currentAdmin = adminObj;
-  document.getElementById('authPanel').classList.add('hidden');
-  document.getElementById('memberDashboard').style.display = 'block';
-  document.getElementById('memberName').textContent = adminObj.name;
-  updateDashCounts();
-  // Reload feeds so delete buttons appear for admin
-  loadResearch(); loadBlog(); loadNews();
+// ---------------- Posts: Supabase ----------------
+async function dbGetPosts(type){
+  return sbFetch(`/rest/v1/posts?type=eq.${type}&order=created_at.desc&select=*`);
+}
+async function dbInsertPost(obj){
+  return sbFetch('/rest/v1/posts', {method:'POST', body:JSON.stringify(obj), headers:{'Prefer':'return=minimal'}});
+}
+async function dbDeletePost(id){
+  return sbFetch(`/rest/v1/posts?id=eq.${id}`, {method:'DELETE'});
 }
 
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
-  currentAdmin = null;
-  document.getElementById('memberDashboard').style.display='none';
-  document.getElementById('authPanel').classList.remove('hidden');
-  document.getElementById('loginForm').reset();
-  loadResearch(); loadBlog(); loadNews();
-});
+// ---------------- Visitors: Supabase ----------------
+async function dbGetVisitor(email){
+  const r = await sbFetch(`/rest/v1/visitors?email=eq.${encodeURIComponent(email)}&select=*`);
+  return r.length ? r[0] : null;
+}
+async function dbInsertVisitor(obj){
+  return sbFetch('/rest/v1/visitors', {method:'POST', body:JSON.stringify(obj), headers:{'Prefer':'return=minimal'}});
+}
 
+// ---------------- Watchlist: Supabase ----------------
+async function dbGetWatchlist(email){
+  return sbFetch(`/rest/v1/watchlist?user_email=eq.${encodeURIComponent(email)}&order=created_at.asc&select=*`);
+}
+async function dbInsertWatch(email, symbol){
+  return sbFetch('/rest/v1/watchlist', {method:'POST', body:JSON.stringify({user_email:email, symbol}), headers:{'Prefer':'return=minimal'}});
+}
+async function dbDeleteWatch(id){
+  return sbFetch(`/rest/v1/watchlist?id=eq.${id}`, {method:'DELETE'});
+}
+
+// Dashboard counts
 async function updateDashCounts(){
-  const [r, b, n] = await Promise.all([safeList('research:', true), safeList('blogpost:', true), safeList('news:', true)]);
-  document.getElementById('countResearch').textContent = r.length;
-  document.getElementById('countBlog').textContent = b.length;
-  document.getElementById('countNews').textContent = n.length;
+  try{
+    const [r,b,n] = await Promise.all([
+      sbFetch('/rest/v1/posts?type=eq.research&select=id'),
+      sbFetch('/rest/v1/posts?type=eq.blog&select=id'),
+      sbFetch('/rest/v1/posts?type=eq.news&select=id'),
+    ]);
+    document.getElementById('countResearch').textContent = r.length;
+    document.getElementById('countBlog').textContent = b.length;
+    document.getElementById('countNews').textContent = n.length;
+  }catch(e){ console.error('count error',e); }
 }
+
 
 // ---------------- Dashboard post-type tabs ----------------
 document.querySelectorAll('.tab[data-posttab]').forEach(tab=>{
@@ -814,6 +797,52 @@ const blogImageField = setupImageField('blogImage', 'blogImagePreviewWrap', 'blo
 const newsImageField = setupImageField('newsImage', 'newsImagePreviewWrap', 'newsImagePreview');
 
 // ---------------- Publish: Research ----------------
+// Admin login stays hardcoded (no DB needed)
+let currentAdmin = null;
+const ADMIN_CREDENTIALS = { name:'Rahul Patwaa', email:'admin@rivexafinancials.com', password:'@Rivexa123' };
+
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value.trim();
+  const msg = document.getElementById('loginMsg');
+  msg.className='form-msg'; msg.textContent='Checking credentials...';
+  if(email !== ADMIN_CREDENTIALS.email.toLowerCase() || password !== ADMIN_CREDENTIALS.password){
+    msg.className='form-msg err'; msg.textContent='Incorrect email or password.'; return;
+  }
+  msg.className='form-msg ok'; msg.textContent='Welcome back!';
+  setTimeout(()=>loginAdmin(ADMIN_CREDENTIALS), 300);
+});
+
+function loginAdmin(adminObj){
+  currentAdmin = adminObj;
+  document.getElementById('authPanel').classList.add('hidden');
+  document.getElementById('memberDashboard').style.display = 'block';
+  document.getElementById('memberName').textContent = adminObj.name;
+  updateDashCounts();
+  loadResearch(); loadBlog(); loadNews();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  currentAdmin = null;
+  document.getElementById('memberDashboard').style.display='none';
+  document.getElementById('authPanel').classList.remove('hidden');
+  document.getElementById('loginForm').reset();
+  loadResearch(); loadBlog(); loadNews();
+});
+
+// ---------------- Dashboard post-type tabs ----------------
+document.querySelectorAll('.tab[data-posttab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab[data-posttab]').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const which = tab.dataset.posttab;
+    document.getElementById('researchForm').classList.toggle('hidden', which!=='research');
+    document.getElementById('blogForm').classList.toggle('hidden', which!=='blog');
+    document.getElementById('newsForm').classList.toggle('hidden', which!=='news');
+  });
+});
+
 document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('researchMsg');
@@ -823,19 +852,16 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   const tag = document.getElementById('researchTag').value.trim().toUpperCase();
   const body = document.getElementById('researchBody').value.trim();
   const image = researchImageField.getData();
-  const id = 'research:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
-  const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
-  msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
-  document.getElementById('researchForm').reset();
-  researchImageField.reset();
-  await sendPushNotification(title, body, 'research');
-  await loadResearch(); await updateDashCounts();
+  try{
+    await dbInsertPost({type:'research', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
+    document.getElementById('researchForm').reset(); researchImageField.reset();
+    await sendPushNotification(title, body, 'research');
+    await loadResearch(); await updateDashCounts();
+  }catch(e){ msg.className='form-msg err'; msg.textContent='Failed to publish: '+e.message; }
 });
 
-// ---------------- Publish: Blog ----------------
 document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('blogMsg');
@@ -845,19 +871,16 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   const tag = document.getElementById('blogTag').value.trim();
   const body = document.getElementById('blogBody').value.trim();
   const image = blogImageField.getData();
-  const id = 'blogpost:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
-  const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
-  msg.className='form-msg ok'; msg.textContent='Published to the blog!';
-  document.getElementById('blogForm').reset();
-  blogImageField.reset();
-  await sendPushNotification(title, body, 'blog');
-  await loadBlog(); await updateDashCounts();
+  try{
+    await dbInsertPost({type:'blog', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    msg.className='form-msg ok'; msg.textContent='Published to the blog!';
+    document.getElementById('blogForm').reset(); blogImageField.reset();
+    await sendPushNotification(title, body, 'blog');
+    await loadBlog(); await updateDashCounts();
+  }catch(e){ msg.className='form-msg err'; msg.textContent='Failed to publish: '+e.message; }
 });
 
-// ---------------- Publish: News ----------------
 document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const msg = document.getElementById('newsMsg');
@@ -867,16 +890,14 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const tag = document.getElementById('newsTag').value.trim();
   const body = document.getElementById('newsBody').value.trim();
   const image = newsImageField.getData();
-  const id = 'news:' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-  const obj = {title, tag, body, image, authorName: currentAdmin.name, date: new Date().toISOString()};
   msg.className='form-msg'; msg.textContent='Publishing...';
-  const res = await safeSet(id, JSON.stringify(obj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Failed to publish. Try again.'; return; }
-  msg.className='form-msg ok'; msg.textContent='Published to major news!';
-  document.getElementById('newsForm').reset();
-  newsImageField.reset();
-  await sendPushNotification(title, body, 'news');
-  await loadNews(); await updateDashCounts();
+  try{
+    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    msg.className='form-msg ok'; msg.textContent='Published to major news!';
+    document.getElementById('newsForm').reset(); newsImageField.reset();
+    await sendPushNotification(title, body, 'news');
+    await loadNews(); await updateDashCounts();
+  }catch(e){ msg.className='form-msg err'; msg.textContent='Failed to publish: '+e.message; }
 });
 
 // ---------------- Load / render public feeds ----------------
@@ -884,56 +905,51 @@ function escapeHtml(str){
   const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
 }
 
-async function loadFeed(prefix, gridId, countId, emptyMsg, noun){
+async function renderFeed(type, gridId, countId, emptyMsg, noun){
   const grid = document.getElementById(gridId);
   const countEl = document.getElementById(countId);
   grid.innerHTML = `<div class="empty-state">Loading ${noun}...</div>`;
-  const keys = await safeList(prefix, true);
-  if(!keys || keys.length===0){
-    grid.innerHTML = `<div class="empty-state">${emptyMsg}</div>`;
-    countEl.textContent = '';
-    return;
-  }
-  const items = [];
-  for(const k of keys){
-    const raw = await safeGet(k, true);
-    if(raw){ try{ items.push({...JSON.parse(raw), _key: k}); }catch(e){} }
-  }
-  items.sort((a,b)=> new Date(b.date) - new Date(a.date));
-  countEl.textContent = items.length + ' ' + noun + ' published';
-  grid.innerHTML = items.map(p=>`
-    <div class="post-card" data-key="${escapeHtml(p._key)}">
-      ${p.image ? `<img src="${p.image}" alt="" class="post-img" data-src="${p.image}" title="Click to zoom">` : ''}
-      <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.date).toLocaleDateString()}</span></div>
-      <h3>${escapeHtml(p.title)}</h3>
-      <p>${escapeHtml(p.body.slice(0,140))}${p.body.length>140?'…':''}</p>
-      <div class="post-actions">
-        <div class="post-foot">By ${escapeHtml(p.authorName)}</div>
-        ${currentAdmin ? `<button class="btn-delete" data-key="${escapeHtml(p._key)}">🗑 Delete</button>` : ''}
+  try{
+    const items = await dbGetPosts(type);
+    if(!items.length){
+      grid.innerHTML = `<div class="empty-state">${emptyMsg}</div>`;
+      countEl.textContent = ''; return;
+    }
+    countEl.textContent = items.length + ' ' + noun + ' published';
+    grid.innerHTML = items.map(p=>`
+      <div class="post-card" data-id="${p.id}">
+        ${p.image ? `<img src="${p.image}" alt="" class="post-img" data-src="${p.image}" title="Click to zoom">` : ''}
+        <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.created_at).toLocaleDateString()}</span></div>
+        <h3>${escapeHtml(p.title)}</h3>
+        <p>${escapeHtml(p.body.slice(0,140))}${p.body.length>140?'…':''}</p>
+        <div class="post-actions">
+          <div class="post-foot">By ${escapeHtml(p.author_name)}</div>
+          ${currentAdmin ? `<button class="btn-delete" data-id="${p.id}">🗑 Delete</button>` : ''}
+        </div>
       </div>
-    </div>
-  `).join('');
-
-  // Image click → lightbox
-  grid.querySelectorAll('.post-img').forEach(img=>{
-    img.addEventListener('click', ()=> openLightbox(img.dataset.src));
-  });
-
-  // Delete buttons (admin only)
-  grid.querySelectorAll('.btn-delete').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      if(!confirm('Delete this post? This cannot be undone.')) return;
-      await safeDelete(btn.dataset.key, true);
-      // reload all three feeds to update counts
-      await Promise.all([loadResearch(), loadBlog(), loadNews()]);
-      await updateDashCounts();
+    `).join('');
+    grid.querySelectorAll('.post-img').forEach(img=>{
+      img.addEventListener('click', ()=> openLightbox(img.dataset.src));
     });
-  });
+    grid.querySelectorAll('.btn-delete').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Delete this post? This cannot be undone.')) return;
+        await dbDeletePost(btn.dataset.id);
+        await Promise.all([loadResearch(), loadBlog(), loadNews()]);
+        await updateDashCounts();
+      });
+    });
+  }catch(e){
+    grid.innerHTML = `<div class="empty-state">Error loading ${noun}. Check your connection.</div>`;
+    console.error(e);
+  }
 }
 
-function loadResearch(){ return loadFeed('research:', 'researchGrid', 'researchCount', 'No research published yet. Check back soon.', 'note'); }
-function loadBlog(){ return loadFeed('blogpost:', 'blogPostGrid', 'blogCount', 'No blog posts published yet. Check back soon.', 'post'); }
-function loadNews(){ return loadFeed('news:', 'newsGrid', 'newsCount', 'No news published yet. Check back soon.', 'item'); }
+function loadResearch(){ return renderFeed('research','researchGrid','researchCount','No research published yet. Check back soon.','note'); }
+function loadBlog(){ return renderFeed('blog','blogPostGrid','blogCount','No blog posts published yet. Check back soon.','post'); }
+function loadNews(){ return renderFeed('news','newsGrid','newsCount','No news published yet. Check back soon.','item'); }
+
+
 
 // ---------------- Lightbox ----------------
 let lbZoom = 1;
@@ -982,7 +998,7 @@ document.querySelectorAll('.tab[data-usertab]').forEach(tab=>{
   });
 });
 
-let currentUser = null; // {name,email,joined} — regular visitor, separate from admin
+let currentUser = null;
 
 document.getElementById('userSignupForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -991,18 +1007,13 @@ document.getElementById('userSignupForm').addEventListener('submit', async (e)=>
   const password = document.getElementById('userSignupPassword').value;
   const msg = document.getElementById('userSignupMsg');
   msg.className='form-msg'; msg.textContent='Creating account...';
-
-  const key = 'visitor:'+email;
-  const existing = await safeGet(key, true);
-  if(existing){
-    msg.className='form-msg err'; msg.textContent='An account with this email already exists. Try logging in.';
-    return;
-  }
-  const userObj = {name, email, password, joined: new Date().toISOString()};
-  const res = await safeSet(key, JSON.stringify(userObj), true);
-  if(!res){ msg.className='form-msg err'; msg.textContent='Something went wrong. Please try again.'; return; }
-  msg.className='form-msg ok'; msg.textContent='Account created! Logging you in...';
-  setTimeout(()=>loginVisitor(userObj), 600);
+  try{
+    const existing = await dbGetVisitor(email);
+    if(existing){ msg.className='form-msg err'; msg.textContent='Account already exists. Try logging in.'; return; }
+    await dbInsertVisitor({name, email, password, joined_at: new Date().toISOString()});
+    msg.className='form-msg ok'; msg.textContent='Account created! Logging you in...';
+    setTimeout(()=>loginVisitor({name, email, joined_at: new Date().toISOString()}), 600);
+  }catch(e){ msg.className='form-msg err'; msg.textContent='Error: '+e.message; }
 });
 
 document.getElementById('userLoginForm').addEventListener('submit', async (e)=>{
@@ -1011,13 +1022,13 @@ document.getElementById('userLoginForm').addEventListener('submit', async (e)=>{
   const password = document.getElementById('userLoginPassword').value;
   const msg = document.getElementById('userLoginMsg');
   msg.className='form-msg'; msg.textContent='Checking credentials...';
-
-  const raw = await safeGet('visitor:'+email, true);
-  if(!raw){ msg.className='form-msg err'; msg.textContent='No account found with this email. Please sign up.'; return; }
-  const userObj = JSON.parse(raw);
-  if(userObj.password !== password){ msg.className='form-msg err'; msg.textContent='Incorrect password.'; return; }
-  msg.className='form-msg ok'; msg.textContent='Welcome back!';
-  setTimeout(()=>loginVisitor(userObj), 300);
+  try{
+    const userObj = await dbGetVisitor(email);
+    if(!userObj){ msg.className='form-msg err'; msg.textContent='No account found. Please sign up.'; return; }
+    if(userObj.password !== password){ msg.className='form-msg err'; msg.textContent='Incorrect password.'; return; }
+    msg.className='form-msg ok'; msg.textContent='Welcome back!';
+    setTimeout(()=>loginVisitor(userObj), 300);
+  }catch(e){ msg.className='form-msg err'; msg.textContent='Error: '+e.message; }
 });
 
 function loginVisitor(userObj){
@@ -1026,7 +1037,7 @@ function loginVisitor(userObj){
   document.getElementById('userDashboard').style.display = 'block';
   document.getElementById('userName').textContent = userObj.name;
   document.getElementById('userEmail').textContent = userObj.email;
-  document.getElementById('userSince').textContent = new Date(userObj.joined).toLocaleDateString();
+  document.getElementById('userSince').textContent = new Date(userObj.joined_at).toLocaleDateString();
   loadWatchlist();
 }
 
@@ -1038,48 +1049,46 @@ document.getElementById('userLogoutBtn').addEventListener('click', ()=>{
   document.getElementById('userSignupForm').reset();
 });
 
-// ---------------- Personal watchlist (private, per visitor) ----------------
+// ---------------- Personal watchlist (Supabase, per visitor) ----------------
 async function loadWatchlist(){
   if(!currentUser) return;
-  const raw = await safeGet('watchlist:'+currentUser.email, false);
-  const items = raw ? JSON.parse(raw) : [];
-  renderWatchlist(items);
+  try{
+    const items = await dbGetWatchlist(currentUser.email);
+    renderWatchlist(items);
+  }catch(e){ console.error('watchlist load failed', e); }
 }
+
 function renderWatchlist(items){
   document.getElementById('userWatchCount').textContent = items.length;
   const wrap = document.getElementById('watchlistItems');
-  if(items.length===0){
+  if(!items.length){
     wrap.innerHTML = '<span style="color:var(--muted); font-size:13.5px;">No symbols added yet.</span>';
     return;
   }
-  wrap.innerHTML = items.map((sym,i)=>`
+  wrap.innerHTML = items.map(item=>`
     <span class="tag-pill" style="font-size:12.5px; padding:7px 12px; display:inline-flex; align-items:center; gap:8px;">
-      ${escapeHtml(sym)} <span data-idx="${i}" class="watch-remove" style="cursor:pointer; opacity:.7;">✕</span>
+      ${escapeHtml(item.symbol)} <span data-id="${item.id}" class="watch-remove" style="cursor:pointer; opacity:.7;">✕</span>
     </span>
   `).join('');
   wrap.querySelectorAll('.watch-remove').forEach(el=>{
     el.addEventListener('click', async ()=>{
-      const idx = parseInt(el.dataset.idx, 10);
-      const raw = await safeGet('watchlist:'+currentUser.email, false);
-      const items = raw ? JSON.parse(raw) : [];
-      items.splice(idx,1);
-      await safeSet('watchlist:'+currentUser.email, JSON.stringify(items), false);
-      renderWatchlist(items);
+      await dbDeleteWatch(el.dataset.id);
+      await loadWatchlist();
     });
   });
 }
+
 document.getElementById('watchlistForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(!currentUser) return;
   const input = document.getElementById('watchlistInput');
   const sym = input.value.trim().toUpperCase();
   if(!sym) return;
-  const raw = await safeGet('watchlist:'+currentUser.email, false);
-  const items = raw ? JSON.parse(raw) : [];
-  items.push(sym);
-  await safeSet('watchlist:'+currentUser.email, JSON.stringify(items), false);
-  input.value='';
-  renderWatchlist(items);
+  try{
+    await dbInsertWatch(currentUser.email, sym);
+    input.value='';
+    await loadWatchlist();
+  }catch(e){ console.error('watchlist add failed', e); }
 });
 
 // ---------------- Contact form (demo only) ----------------
