@@ -329,6 +329,7 @@
       <a href="#news">News</a>
       <a href="#research">Research</a>
       <a href="#blog">Blog</a>
+      <a href="#subscribe">Subscribe</a>
       <a href="#about">About</a>
       <a href="#contact">Contact</a>
       <a href="#login" class="btn-outline">Login</a>
@@ -552,8 +553,26 @@
   </div>
 </section>
 
+<section id="subscribe">
+  <div class="section-tag">Stay Updated</div>
+  <h2>Get email notifications</h2>
+  <p class="section-intro">Subscribe to get email alerts whenever new Research or Blog posts are published on RIVEXA Financials.</p>
+  <div class="members-panel" style="max-width:480px; margin:0 auto;" id="subscribePanel">
+    <form id="subscribeForm">
+      <div class="field"><label>Your Name</label><input type="text" id="subName" required placeholder="e.g. Rahul"></div>
+      <div class="field"><label>Email Address</label><input type="email" id="subEmail" required placeholder="your@email.com"></div>
+      <button type="submit" class="btn-gold" style="width:100%;">📧 Subscribe for Free</button>
+      <div class="form-msg" id="subMsg"></div>
+    </form>
+    <div id="subSuccess" class="hidden" style="text-align:center; padding:20px;">
+      <div style="font-size:32px; margin-bottom:12px;">✅</div>
+      <h3 style="font-family:var(--display); margin-bottom:8px;">You're subscribed!</h3>
+      <p style="color:var(--muted); font-size:14px;">You'll receive email notifications whenever new Research or Blog posts are published.</p>
+    </div>
+  </div>
+</section>
+
 <section id="contact">
-  <div class="section-tag">Get In Touch</div>
   <h2>Let's talk markets.</h2>
   <div class="contact-wrap">
     <div>
@@ -1103,7 +1122,33 @@ document.getElementById('watchlistForm').addEventListener('submit', async (e)=>{
   }catch(e){ console.error('watchlist add failed', e); }
 });
 
-// ---------------- Contact form (demo only) ----------------
+// ---------------- Email Subscribe ----------------
+document.getElementById('subscribeForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('subName').value.trim();
+  const email = document.getElementById('subEmail').value.trim().toLowerCase();
+  const msg = document.getElementById('subMsg');
+  msg.className='form-msg'; msg.textContent='Subscribing...';
+  try{
+    // Check if already subscribed
+    const check = await sbFetch(`/rest/v1/subscribers?email=eq.${encodeURIComponent(email)}&select=id`);
+    if(check && check.length > 0){
+      msg.className='form-msg ok'; msg.textContent='You are already subscribed! ✓';
+      return;
+    }
+    await sbFetch('/rest/v1/subscribers', {
+      method:'POST',
+      body: JSON.stringify({name, email}),
+      headers:{'Prefer':'return=minimal'}
+    });
+    document.getElementById('subscribeForm').classList.add('hidden');
+    document.getElementById('subSuccess').classList.remove('hidden');
+  }catch(err){
+    msg.className='form-msg err'; msg.textContent='Error: '+err.message;
+  }
+});
+
+// ---------------- Contact form ----------------
 document.getElementById('contactForm').addEventListener('submit', (e)=>{
   e.preventDefault();
   const msg = document.getElementById('contactMsg');
