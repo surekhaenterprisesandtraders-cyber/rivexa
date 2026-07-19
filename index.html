@@ -676,61 +676,85 @@ document.getElementById('menuToggle').addEventListener('click', ()=>{
 });
 
 // ---------------- Supabase config ----------------
-const SB_URL = 'https://ksyxwivqawcmfceybyny.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzeXh3aXZxYXdjbWZjZXlieW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzA1MTQsImV4cCI6MjA5ODUwNjUxNH0.7heWNF5gY-12UCJAU1LidVAGeJkZMNa54rhuT1hIWd0';
-const sbHeaders = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+// ---------------- Firebase Realtime Database ----------------
+const FB_URL = 'https://rivexa-financials-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-async function sbFetch(path, options={}){
-  const res = await fetch(SB_URL+path, {...options, headers:{...sbHeaders,...(options.headers||{})}});
-  if(!res.ok){ const e = await res.text(); throw new Error(e); }
-  const txt = await res.text();
-  return txt ? JSON.parse(txt) : [];
+async function fbGet(path){
+  const res = await fetch(`${FB_URL}/${path}.json`);
+  if(!res.ok) throw new Error('Firebase read failed');
+  return res.json();
+}
+async function fbPush(path, data){
+  const res = await fetch(`${FB_URL}/${path}.json`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)
+  });
+  if(!res.ok) throw new Error('Firebase write failed');
+  return res.json();
+}
+async function fbDelete(path){
+  const res = await fetch(`${FB_URL}/${path}.json`, {method:'DELETE'});
+  if(!res.ok) throw new Error('Firebase delete failed');
+  return res.json();
 }
 
-// ---------------- Posts: Supabase ----------------
+// ---------------- Posts: Firebase ----------------
 async function dbGetPosts(type){
-  return sbFetch(`/rest/v1/posts?type=eq.${type}&order=created_at.desc&select=*`);
+  const data = await fbGet(`posts/${type}`);
+  if(!data) return [];
+  return Object.entries(data)
+    .map(([id, p]) => ({...p, id}))
+    .sort((a,b) => new Date(b.post_date||b.created_at) - new Date(a.post_date||a.created_at));
 }
 async function dbInsertPost(obj){
-  return sbFetch('/rest/v1/posts', {method:'POST', body:JSON.stringify(obj), headers:{'Prefer':'return=minimal'}});
+  return fbPush(`posts/${obj.type}`, obj);
 }
-async function dbDeletePost(id){
-  return sbFetch(`/rest/v1/posts?id=eq.${id}`, {method:'DELETE'});
+async function dbDeletePost(id, type){
+  return fbDelete(`posts/${type}/${id}`);
 }
 
-// ---------------- Visitors: Supabase ----------------
+// ---------------- Visitors: Firebase ----------------
 async function dbGetVisitor(email){
-  const r = await sbFetch(`/rest/v1/visitors?email=eq.${encodeURIComponent(email)}&select=*`);
-  return r.length ? r[0] : null;
+  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+  const data = await fbGet(`visitors/${key}`);
+  return data || null;
 }
 async function dbInsertVisitor(obj){
-  return sbFetch('/rest/v1/visitors', {method:'POST', body:JSON.stringify(obj), headers:{'Prefer':'return=minimal'}});
+  const key = obj.email.replace(/\./g,'_').replace(/@/g,'__at__');
+  const res = await fetch(`${FB_URL}/visitors/${key}.json`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(obj)
+  });
+  if(!res.ok) throw new Error('Firebase write failed');
+  return res.json();
 }
 
-// ---------------- Watchlist: Supabase ----------------
+// ---------------- Watchlist: Firebase ----------------
 async function dbGetWatchlist(email){
-  return sbFetch(`/rest/v1/watchlist?user_email=eq.${encodeURIComponent(email)}&order=created_at.asc&select=*`);
+  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+  const data = await fbGet(`watchlist/${key}`);
+  if(!data) return [];
+  return Object.entries(data).map(([id, w]) => ({...w, id}));
 }
 async function dbInsertWatch(email, symbol){
-  return sbFetch('/rest/v1/watchlist', {method:'POST', body:JSON.stringify({user_email:email, symbol}), headers:{'Prefer':'return=minimal'}});
+  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+  return fbPush(`watchlist/${key}`, {symbol, created_at: new Date().toISOString()});
 }
-async function dbDeleteWatch(id){
-  return sbFetch(`/rest/v1/watchlist?id=eq.${id}`, {method:'DELETE'});
+async function dbDeleteWatch(id, email){
+  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+  return fbDelete(`watchlist/${key}/${id}`);
 }
 
 // Dashboard counts
 async function updateDashCounts(){
   try{
     const [r,b,n] = await Promise.all([
-      sbFetch('/rest/v1/posts?type=eq.research&select=id'),
-      sbFetch('/rest/v1/posts?type=eq.blog&select=id'),
-      sbFetch('/rest/v1/posts?type=eq.news&select=id'),
+      fbGet('posts/research'), fbGet('posts/blog'), fbGet('posts/news')
     ]);
-    document.getElementById('countResearch').textContent = r.length;
-    document.getElementById('countBlog').textContent = b.length;
-    document.getElementById('countNews').textContent = n.length;
+    document.getElementById('countResearch').textContent = r ? Object.keys(r).length : 0;
+    document.getElementById('countBlog').textContent = b ? Object.keys(b).length : 0;
+    document.getElementById('countNews').textContent = n ? Object.keys(n).length : 0;
   }catch(e){ console.error('count error',e); }
 }
+
 
 
 // ---------------- Dashboard post-type tabs ----------------
@@ -753,10 +777,7 @@ async function sendPushNotification(title, body, type){
   try{
     await fetch('https://ksyxwivqawcmfceybyny.supabase.co/functions/v1/send-notification', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SB_KEY}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, body, type })
     });
   }catch(e){ console.warn('Push notification failed:', e); }
@@ -966,7 +987,7 @@ async function renderFeed(type, gridId, countId, emptyMsg, noun){
     grid.querySelectorAll('.btn-delete').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         if(!confirm('Delete this post? This cannot be undone.')) return;
-        await dbDeletePost(btn.dataset.id);
+        await dbDeletePost(btn.dataset.id, type);
         await Promise.all([loadResearch(), loadBlog(), loadNews()]);
         await updateDashCounts();
       });
@@ -1118,7 +1139,7 @@ function renderWatchlist(items){
   `).join('');
   wrap.querySelectorAll('.watch-remove').forEach(el=>{
     el.addEventListener('click', async ()=>{
-      await dbDeleteWatch(el.dataset.id);
+      await dbDeleteWatch(el.dataset.id, currentUser.email);
       await loadWatchlist();
     });
   });
@@ -1145,16 +1166,15 @@ document.getElementById('subscribeForm').addEventListener('submit', async (e)=>{
   const msg = document.getElementById('subMsg');
   msg.className='form-msg'; msg.textContent='Subscribing...';
   try{
-    // Check if already subscribed
-    const check = await sbFetch(`/rest/v1/subscribers?email=eq.${encodeURIComponent(email)}&select=id`);
-    if(check && check.length > 0){
+    const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+    const existing = await fbGet(`subscribers/${key}`);
+    if(existing){
       msg.className='form-msg ok'; msg.textContent='You are already subscribed! ✓';
       return;
     }
-    await sbFetch('/rest/v1/subscribers', {
-      method:'POST',
-      body: JSON.stringify({name, email}),
-      headers:{'Prefer':'return=minimal'}
+    await fetch(`${FB_URL}/subscribers/${key}.json`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, email, subscribed_at: new Date().toISOString()})
     });
     document.getElementById('subscribeForm').classList.add('hidden');
     document.getElementById('subSuccess').classList.remove('hidden');
