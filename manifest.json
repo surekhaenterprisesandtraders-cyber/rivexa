@@ -1,13 +1,15 @@
 {
-  "name": "RIVEXA Financials",
+  "name": "RIVEXA Financials — Market Research & Analysis",
   "short_name": "RIVEXA",
-  "description": "Market Research & Analysis — Equities, Commodities, Crypto",
+  "description": "Data-driven stock market research, technical analysis and crypto insights by Rahul Patwaa, Mumbai. Educational purpose only.",
   "start_url": "/rivexa/",
   "scope": "/rivexa/",
   "display": "standalone",
   "background_color": "#0B0D10",
   "theme_color": "#C9A227",
   "orientation": "portrait-primary",
+  "categories": ["finance", "business", "news"],
+  "lang": "en-IN",
   "icons": [
     {
       "src": "https://i.ibb.co/placeholder/icon-192.png",
