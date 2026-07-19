@@ -174,7 +174,19 @@
 
   /* ---------- BLOG ---------- */
   .blog-toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; flex-wrap:wrap; gap:14px;}
-  .blog-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:24px;}
+  .blog-grid{
+    display:flex; gap:24px;
+    overflow-x:auto; scroll-snap-type:x mandatory;
+    padding-bottom:16px; cursor:grab;
+  }
+  .blog-grid:active{cursor:grabbing;}
+  .blog-grid::-webkit-scrollbar{height:4px;}
+  .blog-grid::-webkit-scrollbar-track{background:var(--line); border-radius:2px;}
+  .blog-grid::-webkit-scrollbar-thumb{background:var(--gold); border-radius:2px;}
+  .blog-grid .post-card{
+    min-width:calc(33.333% - 16px); max-width:calc(33.333% - 16px);
+    scroll-snap-align:start; flex-shrink:0;
+  }
   /* Post detail modal */
   #postModal{
     display:none; position:fixed; inset:0; z-index:200;
@@ -314,6 +326,7 @@
     .hero{grid-template-columns:1fr; padding-top:50px;}
     .services-grid{grid-template-columns:1fr 1fr;}
     .blog-grid{grid-template-columns:1fr;}
+    .blog-grid .post-card{min-width:80vw; max-width:80vw;}
     .about-wrap, .contact-wrap{grid-template-columns:1fr;}
     .dash-grid{grid-template-columns:1fr;}
   }
@@ -1054,6 +1067,17 @@ function loadBlog(){ return renderFeed('blog','blogPostGrid','blogCount','No blo
 function loadNews(){ return renderFeed('news','newsGrid','newsCount','No news published yet. Check back soon.','item'); }
 
 
+
+// ---------------- Horizontal drag-to-scroll for post grids ----------------
+['newsGrid','researchGrid','blogPostGrid'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  let isDown=false, startX, scrollLeft;
+  el.addEventListener('mousedown', e=>{ isDown=true; startX=e.pageX-el.offsetLeft; scrollLeft=el.scrollLeft; });
+  el.addEventListener('mouseleave', ()=>{ isDown=false; });
+  el.addEventListener('mouseup', ()=>{ isDown=false; });
+  el.addEventListener('mousemove', e=>{ if(!isDown) return; e.preventDefault(); const x=e.pageX-el.offsetLeft; el.scrollLeft=scrollLeft-(x-startX); });
+});
 
 // ---------------- Post detail modal ----------------
 const postModal = document.getElementById('postModal');
