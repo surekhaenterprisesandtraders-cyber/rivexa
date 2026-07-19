@@ -274,6 +274,9 @@
     padding:10px 13px; border-radius:4px; cursor:pointer; width:100%;
   }
   input[type="file"]:hover{border-color:var(--gold);}
+  input[type="datetime-local"]{
+    color-scheme: dark;
+  }
 
   footer{border-top:1px solid var(--line); padding:50px 28px; text-align:center;}
   footer p{color:var(--muted); font-size:12.5px; max-width:700px; margin:0 auto 10px;}
@@ -479,6 +482,7 @@
         <div class="field"><label>Title</label><input type="text" id="researchTitle" required></div>
         <div class="field"><label>Market Tag</label><input type="text" id="researchTag" placeholder="e.g. NIFTY, BTC, GOLD" required></div>
         <div class="field"><label>Analysis</label><textarea id="researchBody" required placeholder="Write your technical view..."></textarea></div>
+        <div class="field"><label>Date & Time</label><input type="datetime-local" id="researchDate" required></div>
         <div class="field"><label>Chart / Image (optional)</label><input type="file" id="researchImage" accept="image/*"></div>
         <div id="researchImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="researchImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to Research Desk</button>
@@ -488,6 +492,7 @@
         <div class="field"><label>Title</label><input type="text" id="blogTitle" required></div>
         <div class="field"><label>Category</label><input type="text" id="blogTag" placeholder="e.g. Strategy, Psychology, Education" required></div>
         <div class="field"><label>Post</label><textarea id="blogBody" required placeholder="Write your blog post..."></textarea></div>
+        <div class="field"><label>Date & Time</label><input type="datetime-local" id="blogDate" required></div>
         <div class="field"><label>Image (optional)</label><input type="file" id="blogImage" accept="image/*"></div>
         <div id="blogImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="blogImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to Blog</button>
@@ -497,6 +502,7 @@
         <div class="field"><label>Headline</label><input type="text" id="newsTitle" required></div>
         <div class="field"><label>Category</label><input type="text" id="newsTag" placeholder="e.g. RBI, Fed, Earnings, Global" required></div>
         <div class="field"><label>Details</label><textarea id="newsBody" required placeholder="Write the news summary..."></textarea></div>
+        <div class="field"><label>Date & Time</label><input type="datetime-local" id="newsDate" required></div>
         <div class="field"><label>Image (optional)</label><input type="file" id="newsImage" accept="image/*"></div>
         <div id="newsImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="newsImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
         <button type="submit" class="btn-gold" style="width:100%;">Publish to News</button>
@@ -836,6 +842,13 @@ function loginAdmin(adminObj){
   document.getElementById('authPanel').classList.add('hidden');
   document.getElementById('memberDashboard').style.display = 'block';
   document.getElementById('memberName').textContent = adminObj.name;
+  // Set default date/time to now (IST) for all forms
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const localNow = now.toISOString().slice(0,16);
+  ['researchDate','blogDate','newsDate'].forEach(id=>{
+    document.getElementById(id).value = localNow;
+  });
   updateDashCounts();
   loadResearch(); loadBlog(); loadNews();
 }
@@ -868,13 +881,13 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('researchTitle').value.trim();
   const tag = document.getElementById('researchTag').value.trim().toUpperCase();
   const body = document.getElementById('researchBody').value.trim();
+  const dateVal = document.getElementById('researchDate').value;
   const image = researchImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'research', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    await dbInsertPost({type:'research', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
-    document.getElementById('researchForm').reset(); researchImageField.reset();
-    await sendPushNotification(title, body, 'research');
+    document.getElementById('researchForm').reset(); researchImageField.reset();    await sendPushNotification(title, body, 'research');
     await loadResearch(); await updateDashCounts();
   }catch(e){ msg.className='form-msg err'; msg.textContent='Failed to publish: '+e.message; }
 });
@@ -887,10 +900,11 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('blogTitle').value.trim();
   const tag = document.getElementById('blogTag').value.trim();
   const body = document.getElementById('blogBody').value.trim();
+  const dateVal = document.getElementById('blogDate').value;
   const image = blogImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'blog', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    await dbInsertPost({type:'blog', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to the blog!';
     document.getElementById('blogForm').reset(); blogImageField.reset();
     await sendPushNotification(title, body, 'blog');
@@ -906,10 +920,11 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('newsTitle').value.trim();
   const tag = document.getElementById('newsTag').value.trim();
   const body = document.getElementById('newsBody').value.trim();
+  const dateVal = document.getElementById('newsDate').value;
   const image = newsImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name});
+    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to major news!';
     document.getElementById('newsForm').reset(); newsImageField.reset();
     await sendPushNotification(title, body, 'news');
