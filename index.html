@@ -539,6 +539,7 @@
         <div class="field"><label>Headline</label><input type="text" id="newsTitle" required></div>
         <div class="field"><label>Category</label><input type="text" id="newsTag" placeholder="e.g. RBI, Fed, Earnings, Global" required></div>
         <div class="field"><label>Details</label><textarea id="newsBody" required placeholder="Write the news summary..."></textarea></div>
+        <div class="field"><label>Source</label><input type="text" id="newsSource" placeholder="e.g. Reuters, Bloomberg, Economic Times" required></div>
         <div class="field"><label>Date & Time</label><input type="datetime-local" id="newsDate" required></div>
         <div class="field"><label>Image (optional)</label><input type="file" id="newsImage" accept="image/*"></div>
         <div id="newsImagePreviewWrap" class="hidden" style="margin-bottom:18px;"><img id="newsImagePreview" style="max-width:100%; border-radius:4px; border:1px solid var(--line);"></div>
@@ -995,11 +996,12 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const title = document.getElementById('newsTitle').value.trim();
   const tag = document.getElementById('newsTag').value.trim();
   const body = document.getElementById('newsBody').value.trim();
+  const source = document.getElementById('newsSource').value.trim();
   const dateVal = document.getElementById('newsDate').value;
   const image = newsImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name, post_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
+    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:source||currentAdmin.name, post_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to major news!';
     document.getElementById('newsForm').reset(); newsImageField.reset();
     await sendPushNotification(title, body, 'news');
@@ -1030,7 +1032,7 @@ async function renderFeed(type, gridId, countId, emptyMsg, noun){
         <h3>${escapeHtml(p.title)}</h3>
         <p>${escapeHtml(p.image ? (p.body.slice(0,140)+(p.body.length>140?'…':'')) : (p.body.slice(0,420)+(p.body.length>420?'…':'')))}</p>
         <div class="post-actions">
-          <div class="post-foot">By ${escapeHtml(p.author_name)}</div>
+          <div class="post-foot">${type==='news' ? 'Source: ' : 'By '}${escapeHtml(p.author_name)}</div>
           ${currentAdmin ? `<button class="btn-delete" data-id="${p.id}">🗑 Delete</button>` : ''}
         </div>
       </div>
@@ -1089,7 +1091,7 @@ function openPostModal(p, type){
   document.getElementById('modalTitle').textContent = p.title;
   document.getElementById('modalDate').textContent = new Date(p.post_date||p.created_at).toLocaleString('en-IN',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   document.getElementById('modalContent').textContent = p.body;
-  document.getElementById('modalAuthor').textContent = 'By ' + p.author_name;
+  document.getElementById('modalAuthor').textContent = (type==='news' ? 'Source: ' : 'By ') + p.author_name;
   const img = document.getElementById('modalImg');
   if(p.image){
     img.src = p.image; img.classList.remove('hidden');
