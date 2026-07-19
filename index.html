@@ -885,7 +885,7 @@ document.getElementById('researchForm').addEventListener('submit', async (e)=>{
   const image = researchImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'research', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
+    await dbInsertPost({type:'research', title, tag, body, image:image||null, author_name:currentAdmin.name, post_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to the research desk!';
     document.getElementById('researchForm').reset(); researchImageField.reset();    await sendPushNotification(title, body, 'research');
     await loadResearch(); await updateDashCounts();
@@ -904,7 +904,7 @@ document.getElementById('blogForm').addEventListener('submit', async (e)=>{
   const image = blogImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'blog', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
+    await dbInsertPost({type:'blog', title, tag, body, image:image||null, author_name:currentAdmin.name, post_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to the blog!';
     document.getElementById('blogForm').reset(); blogImageField.reset();
     await sendPushNotification(title, body, 'blog');
@@ -924,7 +924,7 @@ document.getElementById('newsForm').addEventListener('submit', async (e)=>{
   const image = newsImageField.getData();
   msg.className='form-msg'; msg.textContent='Publishing...';
   try{
-    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name, created_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
+    await dbInsertPost({type:'news', title, tag, body, image:image||null, author_name:currentAdmin.name, post_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString()});
     msg.className='form-msg ok'; msg.textContent='Published to major news!';
     document.getElementById('newsForm').reset(); newsImageField.reset();
     await sendPushNotification(title, body, 'news');
@@ -951,7 +951,7 @@ async function renderFeed(type, gridId, countId, emptyMsg, noun){
     grid.innerHTML = items.map(p=>`
       <div class="post-card" data-id="${p.id}">
         ${p.image ? `<img src="${p.image}" alt="" class="post-img" data-src="${p.image}" title="Click to zoom">` : ''}
-        <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.created_at).toLocaleDateString()}</span></div>
+        <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.post_date || p.created_at).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span></div>
         <h3>${escapeHtml(p.title)}</h3>
         <p>${escapeHtml(p.body.slice(0,140))}${p.body.length>140?'…':''}</p>
         <div class="post-actions">
