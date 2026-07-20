@@ -250,26 +250,34 @@
     scroll-snap-align:start; flex-shrink:0;
   }
   .post-carousel{position:relative;}
+  .carousel-prev,
   .carousel-next{
-    position:absolute; right:12px; top:50%; z-index:8;
+    position:absolute; top:50%; z-index:8;
     width:48px; height:48px; border-radius:50%;
     border:1px solid rgba(237,237,231,.34); background:transparent;
     color:rgba(237,237,231,.92); font-size:30px; line-height:1;
     display:grid; place-items:center; cursor:pointer;
     box-shadow:0 8px 28px rgba(0,0,0,.32);
     opacity:0; visibility:hidden; pointer-events:none;
-    transform:translate(8px,-50%);
     transition:opacity .2s, visibility .2s, transform .2s, background .2s;
   }
+  .carousel-prev{left:12px; transform:translate(-8px,-50%);}
+  .carousel-next{right:12px; transform:translate(8px,-50%);}
+  .carousel-prev.is-visible,
   .carousel-next.is-visible{
     opacity:1; visibility:visible; pointer-events:auto;
     transform:translate(0,-50%);
   }
+  .carousel-prev:hover:not(:disabled),
   .carousel-next:hover:not(:disabled){
     background:rgba(237,237,231,.08); color:var(--text);
-    border-color:rgba(237,237,231,.6); transform:translate(-3px,-50%);
+    border-color:rgba(237,237,231,.6);
   }
+  .carousel-prev:hover:not(:disabled){transform:translate(3px,-50%);}
+  .carousel-next:hover:not(:disabled){transform:translate(-3px,-50%);}
+  .carousel-prev:focus-visible,
   .carousel-next:focus-visible{outline:2px solid rgba(237,237,231,.72); outline-offset:3px;}
+  .carousel-prev:disabled,
   .carousel-next:disabled{opacity:.28; cursor:default;}
   /* Post detail modal */
   #postModal{
@@ -527,6 +535,7 @@
     <span style="color:var(--muted); font-size:13px;" id="newsCount"></span>
   </div>
   <div class="post-carousel">
+    <button class="carousel-prev" type="button" data-target="newsGrid" aria-label="Show previous news card" title="Previous card">‹</button>
     <div class="blog-grid" id="newsGrid"></div>
     <button class="carousel-next" type="button" data-target="newsGrid" aria-label="Show next news card" title="Next card">›</button>
   </div>
@@ -540,6 +549,7 @@
     <span style="color:var(--muted); font-size:13px;" id="researchCount"></span>
   </div>
   <div class="post-carousel">
+    <button class="carousel-prev" type="button" data-target="researchGrid" aria-label="Show previous research card" title="Previous card">‹</button>
     <div class="blog-grid" id="researchGrid"></div>
     <button class="carousel-next" type="button" data-target="researchGrid" aria-label="Show next research card" title="Next card">›</button>
   </div>
@@ -553,6 +563,7 @@
     <span style="color:var(--muted); font-size:13px;" id="blogCount"></span>
   </div>
   <div class="post-carousel">
+    <button class="carousel-prev" type="button" data-target="blogPostGrid" aria-label="Show previous blog card" title="Previous card">‹</button>
     <div class="blog-grid" id="blogPostGrid"></div>
     <button class="carousel-next" type="button" data-target="blogPostGrid" aria-label="Show next blog card" title="Next card">›</button>
   </div>
@@ -1166,23 +1177,30 @@ function loadNews(){ return renderFeed('news','newsGrid','newsCount','No news pu
 // ---------------- Post carousel: drag + one-card arrow scrolling ----------------
 ['newsGrid','researchGrid','blogPostGrid'].forEach(id=>{
   const el = document.getElementById(id);
+  const prevBtn = document.querySelector(`.carousel-prev[data-target="${id}"]`);
   const nextBtn = document.querySelector(`.carousel-next[data-target="${id}"]`);
-  if(!el || !nextBtn) return;
+  if(!el || !prevBtn || !nextBtn) return;
 
   const updateArrow = ()=>{
     const canScroll = el.scrollWidth > el.clientWidth + 2;
+    const atStart = el.scrollLeft <= 4;
     const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
-    nextBtn.classList.toggle('is-visible', canScroll);
+    prevBtn.classList.toggle('is-visible', canScroll && !atStart);
+    nextBtn.classList.toggle('is-visible', canScroll && !atEnd);
+    prevBtn.disabled = !canScroll || atStart;
     nextBtn.disabled = !canScroll || atEnd;
   };
 
-  nextBtn.addEventListener('click', ()=>{
+  const scrollOneCard = direction=>{
     const card = el.querySelector('.post-card');
     if(!card) return;
     const gap = parseFloat(getComputedStyle(el).gap) || 0;
     const oneCard = card.getBoundingClientRect().width + gap;
-    el.scrollBy({left:oneCard, behavior:'smooth'});
-  });
+    el.scrollBy({left:direction * oneCard, behavior:'smooth'});
+  };
+
+  prevBtn.addEventListener('click', ()=>scrollOneCard(-1));
+  nextBtn.addEventListener('click', ()=>scrollOneCard(1));
 
   let isDown=false, startX, scrollLeft;
   el.addEventListener('mousedown', e=>{ isDown=true; startX=e.pageX-el.offsetLeft; scrollLeft=el.scrollLeft; });
