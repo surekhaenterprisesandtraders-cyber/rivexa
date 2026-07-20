@@ -249,6 +249,27 @@
     min-width:calc(33.333% - 16px); max-width:calc(33.333% - 16px);
     scroll-snap-align:start; flex-shrink:0;
   }
+  .post-carousel{position:relative;}
+  .carousel-next{
+    position:absolute; right:12px; top:50%; z-index:8;
+    width:48px; height:48px; border-radius:50%;
+    border:1px solid var(--gold); background:rgba(11,13,16,.94);
+    color:var(--gold-bright); font-size:30px; line-height:1;
+    display:grid; place-items:center; cursor:pointer;
+    box-shadow:0 8px 28px rgba(0,0,0,.5), 0 0 0 5px rgba(201,162,39,.08);
+    opacity:0; visibility:hidden; pointer-events:none;
+    transform:translate(8px,-50%);
+    transition:opacity .2s, visibility .2s, transform .2s, background .2s;
+  }
+  .carousel-next.is-visible{
+    opacity:1; visibility:visible; pointer-events:auto;
+    transform:translate(0,-50%);
+  }
+  .carousel-next:hover:not(:disabled){
+    background:var(--gold); color:#0B0D10; transform:translate(-3px,-50%);
+  }
+  .carousel-next:focus-visible{outline:2px solid var(--gold-bright); outline-offset:3px;}
+  .carousel-next:disabled{opacity:.28; cursor:default;}
   /* Post detail modal */
   #postModal{
     display:none; position:fixed; inset:0; z-index:200;
@@ -504,7 +525,10 @@
   <div class="blog-toolbar">
     <span style="color:var(--muted); font-size:13px;" id="newsCount"></span>
   </div>
-  <div class="blog-grid" id="newsGrid"></div>
+  <div class="post-carousel">
+    <div class="blog-grid" id="newsGrid"></div>
+    <button class="carousel-next" type="button" data-target="newsGrid" aria-label="Show next news card" title="Next card">›</button>
+  </div>
 </section>
 
 <section id="research">
@@ -514,7 +538,10 @@
   <div class="blog-toolbar">
     <span style="color:var(--muted); font-size:13px;" id="researchCount"></span>
   </div>
-  <div class="blog-grid" id="researchGrid"></div>
+  <div class="post-carousel">
+    <div class="blog-grid" id="researchGrid"></div>
+    <button class="carousel-next" type="button" data-target="researchGrid" aria-label="Show next research card" title="Next card">›</button>
+  </div>
 </section>
 
 <section id="blog">
@@ -524,7 +551,10 @@
   <div class="blog-toolbar">
     <span style="color:var(--muted); font-size:13px;" id="blogCount"></span>
   </div>
-  <div class="blog-grid" id="blogPostGrid"></div>
+  <div class="post-carousel">
+    <div class="blog-grid" id="blogPostGrid"></div>
+    <button class="carousel-next" type="button" data-target="blogPostGrid" aria-label="Show next blog card" title="Next card">›</button>
+  </div>
 </section>
 
 <section id="about">
@@ -1132,15 +1162,36 @@ function loadNews(){ return renderFeed('news','newsGrid','newsCount','No news pu
 
 
 
-// ---------------- Horizontal drag-to-scroll for post grids ----------------
+// ---------------- Post carousel: drag + one-card arrow scrolling ----------------
 ['newsGrid','researchGrid','blogPostGrid'].forEach(id=>{
   const el = document.getElementById(id);
-  if(!el) return;
+  const nextBtn = document.querySelector(`.carousel-next[data-target="${id}"]`);
+  if(!el || !nextBtn) return;
+
+  const updateArrow = ()=>{
+    const canScroll = el.scrollWidth > el.clientWidth + 2;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+    nextBtn.classList.toggle('is-visible', canScroll);
+    nextBtn.disabled = !canScroll || atEnd;
+  };
+
+  nextBtn.addEventListener('click', ()=>{
+    const card = el.querySelector('.post-card');
+    if(!card) return;
+    const gap = parseFloat(getComputedStyle(el).gap) || 0;
+    const oneCard = card.getBoundingClientRect().width + gap;
+    el.scrollBy({left:oneCard, behavior:'smooth'});
+  });
+
   let isDown=false, startX, scrollLeft;
   el.addEventListener('mousedown', e=>{ isDown=true; startX=e.pageX-el.offsetLeft; scrollLeft=el.scrollLeft; });
   el.addEventListener('mouseleave', ()=>{ isDown=false; });
   el.addEventListener('mouseup', ()=>{ isDown=false; });
   el.addEventListener('mousemove', e=>{ if(!isDown) return; e.preventDefault(); const x=e.pageX-el.offsetLeft; el.scrollLeft=scrollLeft-(x-startX); });
+  el.addEventListener('scroll', updateArrow, {passive:true});
+  window.addEventListener('resize', updateArrow);
+  new MutationObserver(()=>requestAnimationFrame(updateArrow)).observe(el, {childList:true});
+  requestAnimationFrame(updateArrow);
 });
 
 // ---------------- Post detail modal ----------------
@@ -1366,4 +1417,3 @@ loadNews();
 
 </body>
 </html>
-
