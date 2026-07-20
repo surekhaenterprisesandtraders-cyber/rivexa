@@ -253,10 +253,10 @@
   .carousel-next{
     position:absolute; right:12px; top:50%; z-index:8;
     width:48px; height:48px; border-radius:50%;
-    border:1px solid var(--gold); background:rgba(11,13,16,.94);
-    color:var(--gold-bright); font-size:30px; line-height:1;
+    border:1px solid rgba(237,237,231,.34); background:transparent;
+    color:rgba(237,237,231,.92); font-size:30px; line-height:1;
     display:grid; place-items:center; cursor:pointer;
-    box-shadow:0 8px 28px rgba(0,0,0,.5), 0 0 0 5px rgba(201,162,39,.08);
+    box-shadow:0 8px 28px rgba(0,0,0,.32);
     opacity:0; visibility:hidden; pointer-events:none;
     transform:translate(8px,-50%);
     transition:opacity .2s, visibility .2s, transform .2s, background .2s;
@@ -266,9 +266,10 @@
     transform:translate(0,-50%);
   }
   .carousel-next:hover:not(:disabled){
-    background:var(--gold); color:#0B0D10; transform:translate(-3px,-50%);
+    background:rgba(237,237,231,.08); color:var(--text);
+    border-color:rgba(237,237,231,.6); transform:translate(-3px,-50%);
   }
-  .carousel-next:focus-visible{outline:2px solid var(--gold-bright); outline-offset:3px;}
+  .carousel-next:focus-visible{outline:2px solid rgba(237,237,231,.72); outline-offset:3px;}
   .carousel-next:disabled{opacity:.28; cursor:default;}
   /* Post detail modal */
   #postModal{
