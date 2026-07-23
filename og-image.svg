@@ -1,0 +1,41 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0B0D10"/>
+      <stop offset="100%" style="stop-color:#14171C"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#C9A227"/>
+      <stop offset="100%" style="stop-color:#E8C468"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Gold accent line top -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#gold)"/>
+  <!-- Grid lines subtle -->
+  <line x1="0" y1="157" x2="1200" y2="157" stroke="#1A1E24" stroke-width="1"/>
+  <line x1="0" y1="314" x2="1200" y2="314" stroke="#1A1E24" stroke-width="1"/>
+  <line x1="0" y1="471" x2="1200" y2="471" stroke="#1A1E24" stroke-width="1"/>
+  <line x1="300" y1="0" x2="300" y2="630" stroke="#1A1E24" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#1A1E24" stroke-width="1"/>
+  <line x1="900" y1="0" x2="900" y2="630" stroke="#1A1E24" stroke-width="1"/>
+  <!-- Chart line decoration -->
+  <polyline fill="none" stroke="#C9A227" stroke-width="2.5" opacity="0.18"
+    points="0,480 120,450 240,390 360,410 480,320 600,350 720,250 840,270 960,180 1080,200 1200,130"/>
+  <polyline fill="none" stroke="#3FB68B" stroke-width="1.5" opacity="0.12"
+    points="0,520 150,500 300,470 450,480 600,440 750,420 900,380 1050,360 1200,320"/>
+  <!-- RIVEXA wordmark -->
+  <text x="80" y="240" font-family="Georgia, serif" font-size="96" font-weight="700" fill="#EDEDE7" letter-spacing="4">RIVE<tspan fill="#C9A227">XA</tspan></text>
+  <!-- Tagline -->
+  <text x="80" y="300" font-family="Arial, sans-serif" font-size="28" fill="#8B92A0" letter-spacing="1">FINANCIALS</text>
+  <!-- Divider -->
+  <rect x="80" y="335" width="60" height="3" fill="#C9A227"/>
+  <!-- Description -->
+  <text x="80" y="395" font-family="Arial, sans-serif" font-size="30" fill="#EDEDE7">Stock Market Research &amp; Technical Analysis</text>
+  <text x="80" y="445" font-family="Arial, sans-serif" font-size="22" fill="#8B92A0">Equities · Commodities · Crypto · By Rahul Patwaa, Mumbai</text>
+  <!-- Bottom bar -->
+  <rect x="0" y="580" width="1200" height="50" fill="#14171C"/>
+  <text x="80" y="612" font-family="Arial, sans-serif" font-size="18" fill="#8B92A0">rivexafinancials@gmail.com</text>
+  <text x="1120" y="612" font-family="Arial, sans-serif" font-size="18" fill="#C9A227" text-anchor="end">Educational Purpose Only</text>
+</svg>
