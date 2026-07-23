@@ -393,6 +393,39 @@
   .lb-zoom-label{color:rgba(255,255,255,.5); font-family:var(--mono); font-size:12px; min-width:44px; text-align:center;}
   .empty-state{color:var(--muted); font-size:14px; padding:40px; text-align:center; border:1px dashed var(--line); border-radius:6px;}
 
+  /* ---------- BACK TO TOP ---------- */
+  #backToTop{
+    position:fixed; bottom:28px; right:28px; z-index:500;
+    background:var(--gold); color:#0B0D10; border:none; border-radius:50%;
+    width:46px; height:46px; font-size:20px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(201,162,39,.35);
+    opacity:0; transform:translateY(12px);
+    transition:opacity .3s, transform .3s;
+    pointer-events:none;
+  }
+  #backToTop.visible{opacity:1; transform:translateY(0); pointer-events:auto;}
+  #backToTop:hover{background:var(--gold-bright);}
+
+  /* ---------- READING TIME ---------- */
+  .read-time{
+    font-family:var(--mono); font-size:10.5px; color:var(--muted);
+    background:var(--panel-2); border:1px solid var(--line);
+    padding:2px 8px; border-radius:20px;
+  }
+
+  /* ---------- SHARE BUTTONS ---------- */
+  .share-row{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .share-btn{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11.5px; font-family:var(--mono); font-weight:600;
+    padding:5px 11px; border-radius:4px; cursor:pointer;
+    border:none; text-decoration:none; transition:opacity .2s;
+  }
+  .share-btn:hover{opacity:.82;}
+  .share-wa{background:#25D366; color:#fff;}
+  .share-tg{background:#229ED9; color:#fff;}
+
   /* ---------- ABOUT ---------- */
   .about-wrap{display:grid; grid-template-columns:.9fr 1.1fr; gap:60px; align-items:center;}
   .stat-row{display:flex; gap:40px; margin-top:30px; flex-wrap:wrap;}
@@ -786,6 +819,8 @@
   <p style="margin-top:10px; font-size:11px; color:#4a5060; letter-spacing:.04em;">A <span style="color:#6b7280;">Surekha Enterprises</span> Venture</p>
 </footer>
 
+<button id="backToTop" title="Back to top">↑</button>
+
 <div id="postModal">
   <div class="modal-box">
     <button class="modal-close" id="modalClose">✕</button>
@@ -1171,18 +1206,31 @@ async function renderFeed(type, gridId, countId, emptyMsg, noun){
       countEl.textContent = ''; return;
     }
     countEl.textContent = items.length + ' ' + noun + ' published';
-    grid.innerHTML = items.map(p=>`
+    const siteUrl = 'https://surekhaenterprisesandtraders-cyber.github.io/rivexa/';
+    grid.innerHTML = items.map(p=>{
+      const wordCount = p.body.split(/\s+/).length;
+      const readMins = Math.max(1, Math.ceil(wordCount / 200));
+      const shareText = encodeURIComponent(`${p.title} — RIVEXA Financials\n${siteUrl}#${type}`);
+      return `
       <div class="post-card" data-id="${p.id}">
         ${p.image ? `<img src="${p.image}" alt="" class="post-img" data-src="${p.image}" title="Click to zoom">` : ''}
-        <div class="post-meta"><span class="tag-pill">${escapeHtml(p.tag)}</span><span>${new Date(p.post_date || p.created_at).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span></div>
+        <div class="post-meta">
+          <span class="tag-pill">${escapeHtml(p.tag)}</span>
+          <span>${new Date(p.post_date || p.created_at).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+          <span class="read-time">⏱ ${readMins} min read</span>
+        </div>
         <h3>${escapeHtml(p.title)}</h3>
         <p>${escapeHtml(p.image ? (p.body.slice(0,140)+(p.body.length>140?'…':'')) : (p.body.slice(0,420)+(p.body.length>420?'…':'')))}</p>
         <div class="post-actions">
           <div class="post-foot">${type==='news' ? 'Source: ' : 'By '}${escapeHtml(p.author_name)}</div>
           ${currentAdmin ? `<button class="btn-delete" data-id="${p.id}">🗑 Delete</button>` : ''}
         </div>
+        <div class="share-row">
+          <a class="share-btn share-wa" href="https://wa.me/?text=${shareText}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🟢 WhatsApp</a>
+          <a class="share-btn share-tg" href="https://t.me/share/url?url=${encodeURIComponent(siteUrl+'#'+type)}&text=${encodeURIComponent(p.title+' — RIVEXA Financials')}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✈️ Telegram</a>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
     grid.querySelectorAll('.post-img').forEach(img=>{
       img.addEventListener('click', (e)=>{ e.stopPropagation(); openLightbox(img.dataset.src); });
     });
@@ -1254,6 +1302,13 @@ function loadNews(){ return renderFeed('news','newsGrid','newsCount','No news pu
   new MutationObserver(()=>requestAnimationFrame(updateArrow)).observe(el, {childList:true});
   requestAnimationFrame(updateArrow);
 });
+
+// ---------------- Back to top ----------------
+const backToTopBtn = document.getElementById('backToTop');
+window.addEventListener('scroll', ()=>{
+  backToTopBtn.classList.toggle('visible', window.scrollY > 400);
+}, {passive:true});
+backToTopBtn.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
 
 // ---------------- Post detail modal ----------------
 const postModal = document.getElementById('postModal');
